@@ -1,0 +1,40 @@
+services:
+  # Backend API Service
+  - type: web
+    name: propfix-backend
+    runtime: python
+    region: oregon
+    plan: free
+    buildCommand: cd backend && pip install -r requirements.txt
+    startCommand: cd backend && uvicorn server:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: MONGO_URL
+        sync: false
+      - key: EMERGENT_LLM_KEY
+        sync: false
+      - key: DB_NAME
+        value: real_estate_chatbot
+      - key: CORS_ORIGINS
+        fromService:
+          type: web
+          name: propfix-frontend
+          property: host
+
+  # Frontend React Service
+  - type: web
+    name: propfix-frontend
+    runtime: node
+    region: oregon
+    plan: free
+    buildCommand: cd frontend && yarn install && yarn build
+    startCommand: cd frontend && npx serve -s build -l $PORT
+    envVars:
+      - key: NODE_VERSION
+        value: 18.17.0
+      - key: REACT_APP_BACKEND_URL
+        fromService:
+          type: web
+          name: propfix-backend
+          property: host
