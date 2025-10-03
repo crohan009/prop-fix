@@ -15,11 +15,19 @@ function App() {
   const [selectedImage, setSelectedImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
 
   // Create session on mount
   useEffect(() => {
+    // Check if BACKEND_URL is defined
+    if (!BACKEND_URL) {
+      console.error('BACKEND_URL is not defined. Please set REACT_APP_BACKEND_URL environment variable.');
+      setError('Backend URL is not configured. Please contact support.');
+      return;
+    }
+    console.log('Backend URL:', BACKEND_URL);
     createSession();
   }, []);
 
@@ -34,12 +42,15 @@ function App() {
 
   const createSession = async () => {
     try {
+      console.log('Attempting to create session...');
       const response = await axios.post(`${BACKEND_URL}/api/chat/session`, {
         user_name: 'Guest'
       });
+      console.log('Session created:', response.data.session_id);
       setSessionId(response.data.session_id);
     } catch (error) {
       console.error('Error creating session:', error);
+      setError(`Failed to connect to backend: ${error.message}`);
     }
   };
 
@@ -146,11 +157,27 @@ function App() {
         </div>
       </header>
 
+      {/* Error Banner */}
+      {error && (
+        <div style={{
+          backgroundColor: '#fee',
+          color: '#c00',
+          padding: '16px',
+          margin: '16px',
+          borderRadius: '8px',
+          border: '1px solid #fcc'
+        }}>
+          <strong>Error:</strong> {error}
+          <br />
+          <small>Check browser console for more details (F12 → Console tab)</small>
+        </div>
+      )}
+
       {/* Main Content */}
       <main className="main-content">
         <div className="chat-container">
           {/* Welcome Message */}
-          {messages.length === 0 && (
+          {messages.length === 0 && !error && (
             <div className="welcome-section">
               <div className="welcome-icon">
                 <svg width="64" height="64" viewBox="0 0 24 24" fill="none">
