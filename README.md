@@ -18,8 +18,8 @@ This application was built using **[app.emergent.sh](https://app.emergent.sh)** 
 **Backend:**
 - FastAPI (Python)
 - Motor (Async MongoDB driver)
-- Emergent Integrations LLM SDK
-- OpenAI GPT-4 (gpt-5 model)
+- OpenAI Python SDK
+- OpenAI GPT-4o (with vision support)
 
 **Database:**
 - MongoDB (for session and message history)
@@ -210,8 +210,8 @@ yarn start
 
 ## 🔑 Environment Variables
 
-Required environment variables (managed by Emergent.sh):
-- `EMERGENT_LLM_KEY` - API key for Emergent LLM service
+Required environment variables:
+- `OPENAI_API_KEY` - OpenAI API key from platform.openai.com
 - `MONGO_URL` - MongoDB connection string
 - `DB_NAME` - Database name (default: real_estate_chatbot)
 - `CORS_ORIGINS` - Allowed CORS origins

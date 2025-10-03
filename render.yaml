@@ -12,7 +12,7 @@ services:
         value: 3.11.0
       - key: MONGO_URL
         sync: false
-      - key: EMERGENT_LLM_KEY
+      - key: OPENAI_API_KEY
         sync: false
       - key: DB_NAME
         value: real_estate_chatbot

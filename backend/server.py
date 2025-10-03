@@ -8,8 +8,7 @@ import os
 from dotenv import load_dotenv
 import base64
 import uuid
-
-from emergentintegrations.llm.chat import LlmChat, UserMessage, ImageContent
+from openai import AsyncOpenAI
 
 load_dotenv()
 
@@ -28,11 +27,12 @@ app.add_middleware(
 # MongoDB Configuration
 MONGO_URL = os.environ.get("MONGO_URL")
 DB_NAME = os.environ.get("DB_NAME", "real_estate_chatbot")
-client = AsyncIOMotorClient(MONGO_URL)
-db = client[DB_NAME]
+mongo_client = AsyncIOMotorClient(MONGO_URL)
+db = mongo_client[DB_NAME]
 
-# Get Emergent LLM Key
-EMERGENT_LLM_KEY = os.environ.get("EMERGENT_LLM_KEY")
+# OpenAI Configuration
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+openai_client = AsyncOpenAI(api_key=OPENAI_API_KEY)
 
 # Pydantic Models
 class ChatMessage(BaseModel):
@@ -195,28 +195,54 @@ Please provide more details so I can direct you to the right specialist!"""
             # Select system prompt based on agent
             system_prompt = AGENT_1_SYSTEM_PROMPT if agent_type == "agent_1" else AGENT_2_SYSTEM_PROMPT
             agent_name = "Issue Detection Agent" if agent_type == "agent_1" else "Tenancy FAQ Agent"
-            
-            # Create LLM chat instance
-            chat_instance = LlmChat(
-                api_key=EMERGENT_LLM_KEY,
-                session_id=session_id,
-                system_message=system_prompt
-            ).with_model("openai", "gpt-5")
-            
-            # Prepare message
+
+            # Prepare messages for OpenAI
+            messages = [
+                {"role": "system", "content": system_prompt}
+            ]
+
+            # Get conversation history for this session
+            history = await db.messages.find(
+                {"session_id": session_id}
+            ).sort("timestamp", 1).limit(10).to_list(length=10)
+
+            # Add history to context
+            for msg in history:
+                if msg["role"] == "user":
+                    messages.append({"role": "user", "content": msg["content"]})
+                elif msg["role"] == "assistant":
+                    messages.append({"role": "assistant", "content": msg["content"]})
+
+            # Prepare current message
             if image_base64:
                 # Message with image
-                image_content = ImageContent(image_base64=image_base64)
-                user_message = UserMessage(
-                    text=message,
-                    file_contents=[image_content]
-                )
+                messages.append({
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": message},
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:image/jpeg;base64,{image_base64}"
+                            }
+                        }
+                    ]
+                })
             else:
                 # Text-only message
-                user_message = UserMessage(text=message)
-            
-            # Get response from LLM
-            response_text = await chat_instance.send_message(user_message)
+                messages.append({
+                    "role": "user",
+                    "content": message
+                })
+
+            # Get response from OpenAI
+            response = await openai_client.chat.completions.create(
+                model="gpt-4o",  # or "gpt-4-vision-preview" for image support
+                messages=messages,
+                max_tokens=1000
+            )
+
+            response_text = response.choices[0].message.content
         
         # Save message to database
         timestamp = datetime.now(timezone.utc).isoformat()
